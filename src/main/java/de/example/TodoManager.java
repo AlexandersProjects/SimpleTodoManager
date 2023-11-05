@@ -15,7 +15,6 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import java.awt.*;
 import java.io.*;
@@ -142,15 +141,11 @@ public class TodoManager extends JFrame {
             List<String> afterDate = lines.subList(nextDateIndex, lines.size());
 
             // Define a pattern that matches incomplete tasks (lines that start with a hyphen and do not have an 'x' following).
-            // TODO Pattern incompleteTaskPattern = Pattern.compile("^(\\t+)- [^x]");
-            // Pattern incompleteTaskPattern = Pattern.compile("^(?:[\\t ]*[xX]).*");
-            // Pattern incompleteTaskPattern = Pattern.compile("^[\\t ]*[^xX].*");
-            // Pattern incompleteTaskPattern = Pattern.compile("^[\\t ]*- [^xX].*");
-
             // Matches a task that starts with a hyphen or a number and a dot, followed by a space, and is not followed by 'x' or 'X'.
-            // Pattern incompleteTaskPattern = Pattern.compile("^[\\t ]*(?:- |\\d+\\. )[^xX].*");
             Pattern incompleteTaskPattern = Pattern.compile("^[\\t ]*(?:- |\\d+\\. ).*");
 
+            // TODO make the for loop work as intended
+            // TODO copy (or add to both) TODO and @ lines instead of moving them
 
             // Filter out incomplete tasks from the dateContent section.
             //List<String> incompleteTasks = dateContent.stream()
