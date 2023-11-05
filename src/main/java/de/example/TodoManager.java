@@ -11,6 +11,8 @@ import javax.swing.KeyStroke;
 import java.awt.event.KeyEvent;
 import java.awt.event.InputEvent;
 
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -24,6 +26,9 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+
+import mdlaf.MaterialLookAndFeel;
+import mdlaf.themes.MaterialOceanicTheme;
 
 public class TodoManager extends JFrame {
     private JTextField filePathField;
@@ -80,6 +85,17 @@ public class TodoManager extends JFrame {
         // Directly add the 'Move incomplete tasks' menu item to the menu bar
         JMenuItem moveTasksItem = new JMenuItem("Move Uncompleted Tasks");
         moveTasksItem.addActionListener(e -> moveUncompletedTasks());
+        moveTasksItem.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                moveTasksItem.setArmed(true);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                moveTasksItem.setArmed(false);
+            }
+        });
         menuBar.add(moveTasksItem);
 
         setJMenuBar(menuBar);
@@ -88,6 +104,16 @@ public class TodoManager extends JFrame {
 
         add(panel, BorderLayout.NORTH);
         add(new JScrollPane(textArea), BorderLayout.CENTER);
+
+//        try {
+//            // Set System L&F
+//            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+//        } catch (UnsupportedLookAndFeelException | ClassNotFoundException | InstantiationException |
+//                 IllegalAccessException e) {
+//            JOptionPane.showMessageDialog(this, "Error getting the system default theme" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+//        }
+
+        switchToDarkMode();
 
         loadFile();
         // pack();
@@ -321,7 +347,53 @@ public class TodoManager extends JFrame {
         settingsDialog.setVisible(true);
     }
 
+    // Method to switch to dark mode at runtime
+//    public static void switchToDarkMode(JFrame frame) {
+//        MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
+//        SwingUtilities.updateComponentTreeUI(frame);
+//        frame.pack(); // Optional: Adjusts the frame size after theme switch
+//    }
+    // Method to switch to dark mode
+    private void switchToDarkMode() {
+        try {
+            // Check if the Material look and feel is already set, otherwise set it
+            if (!(UIManager.getLookAndFeel() instanceof MaterialLookAndFeel)) {
+                UIManager.setLookAndFeel(new MaterialLookAndFeel());
+            }
+            // Apply the dark theme
+            if (UIManager.getLookAndFeel() instanceof MaterialLookAndFeel) {
+                MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
+            }
+        } catch (UnsupportedLookAndFeelException e) {
+            e.printStackTrace();
+        }
+
+        // Update the component tree - this is safe because it's being called from the EDT
+        SwingUtilities.updateComponentTreeUI(this);
+    }
+
     public static void main(String[] args) {
+//        // Set the look and feel to Material UI
+//        try {
+//            // Set Material look and feel
+//            UIManager.setLookAndFeel(new MaterialLookAndFeel());
+//
+//            // If you want to change the default theme, you can do
+//            if (UIManager.getLookAndFeel() instanceof MaterialLookAndFeel) {
+//                // Set the dark theme
+//                MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
+//            }
+//        } catch (UnsupportedLookAndFeelException e) {
+//            e.printStackTrace();
+//        }
+
         SwingUtilities.invokeLater(TodoManager::new);
+
+//        // Ensure the frame is constructed and shown on the EDT
+//        SwingUtilities.invokeLater(() -> {
+//            TodoManager frame = new TodoManager();
+//            frame.setVisible(true);
+//        });
+
     }
 }
