@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import mdlaf.MaterialLookAndFeel;
-import mdlaf.themes.MaterialOceanicTheme;
+import mdlaf.themes.JMarsDarkTheme;
 
 public class TodoManager extends JFrame {
     private JTextField filePathField;
@@ -36,7 +36,6 @@ public class TodoManager extends JFrame {
     private JTextArea textArea;
 
     public TodoManager() {
-        setTitle("Simple ToDo Manager");
         createAndShowGUI();
     }
 
@@ -117,6 +116,7 @@ public class TodoManager extends JFrame {
 
         loadFile();
         // pack();
+        setTitle("Simple ToDo Manager");
         setLocationRelativeTo(null); // Center on screen
         setVisible(true);
     }
@@ -362,7 +362,8 @@ public class TodoManager extends JFrame {
             }
             // Apply the dark theme
             if (UIManager.getLookAndFeel() instanceof MaterialLookAndFeel) {
-                MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
+//                MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
+                MaterialLookAndFeel.changeTheme(new JMarsDarkTheme());
             }
         } catch (UnsupportedLookAndFeelException e) {
             e.printStackTrace();
@@ -394,6 +395,12 @@ public class TodoManager extends JFrame {
 //            TodoManager frame = new TodoManager();
 //            frame.setVisible(true);
 //        });
+
+        // TODO check if better? Ask GPT?
+        //        SwingUtilities.invokeLater(() -> {
+        //            new DarkModeExample().setVisible(true);
+        //        });
+        //    }
 
     }
 }
