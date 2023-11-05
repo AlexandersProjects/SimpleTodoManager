@@ -29,9 +29,14 @@ public class TodoManager extends JFrame {
     private JTextField filePathField;
     private JTextField backupPathField;
     private JTextArea textArea;
+    private JMenuItem toggleThemeMenuItem;
+    private boolean isDarkMode = true;  // default to dark mode
+    private final Color darkModeBackground = Color.DARK_GRAY;
+    private final Color darkModeForeground = Color.LIGHT_GRAY;
+    private final Color lightModeBackground = Color.WHITE;
+    private final Color lightModeForeground = Color.DARK_GRAY;
 
     public TodoManager() {
-        setTitle("Simple ToDo Manager");
         createAndShowGUI();
     }
 
@@ -74,6 +79,11 @@ public class TodoManager extends JFrame {
         settingsItem.addActionListener(e -> openSettingsDialog());
         optionsMenu.add(settingsItem);
 
+        // Toggle Theme Menu Item
+        toggleThemeMenuItem = new JMenuItem("Toggle Dark Mode");
+        toggleThemeMenuItem.addActionListener(e -> toggleTheme());
+        optionsMenu.add(toggleThemeMenuItem);
+
         // Add everything to the menu bar
         menuBar.add(optionsMenu);
 
@@ -91,6 +101,9 @@ public class TodoManager extends JFrame {
 
         loadFile();
         // pack();
+
+        applyDarkMode();
+        setTitle("Simple ToDo Manager");
         setLocationRelativeTo(null); // Center on screen
         setVisible(true);
     }
@@ -309,6 +322,7 @@ public class TodoManager extends JFrame {
 
         settingsDialog.add(new JLabel("File Path:"));
         settingsDialog.add(filePathField);
+
         settingsDialog.add(new JLabel("Backup Directory:"));
         settingsDialog.add(backupPathField);
 
@@ -320,8 +334,48 @@ public class TodoManager extends JFrame {
         settingsDialog.setLocationRelativeTo(this);
         settingsDialog.setVisible(true);
     }
+    private void applyDarkMode() {
+        textArea.setBackground(darkModeBackground);
+        textArea.setForeground(darkModeForeground);
+        filePathField.setBackground(darkModeBackground);
+        filePathField.setForeground(darkModeForeground);
+        backupPathField.setBackground(darkModeBackground);
+        backupPathField.setForeground(darkModeForeground);
+        toggleThemeMenuItem.setBackground(darkModeBackground);
+        toggleThemeMenuItem.setForeground(darkModeForeground);
+        // Continue this pattern for all other components.
+    }
+
+    private void applyLightMode() {
+        textArea.setBackground(lightModeBackground);
+        textArea.setForeground(lightModeForeground);
+        filePathField.setBackground(lightModeBackground);
+        filePathField.setForeground(lightModeForeground);
+        backupPathField.setBackground(lightModeBackground);
+        backupPathField.setForeground(lightModeForeground);
+        toggleThemeMenuItem.setBackground(lightModeBackground);
+        toggleThemeMenuItem.setForeground(lightModeForeground);
+        // Continue this pattern for all other components.
+    }
+
+    private void toggleTheme() {
+        if (isDarkMode) {
+            applyLightMode();
+        } else {
+            applyDarkMode();
+        }
+        isDarkMode = !isDarkMode;
+        SwingUtilities.updateComponentTreeUI(this); // This will refresh the UI components with the new settings
+        revalidate();
+        repaint();
+    }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(TodoManager::new);
+        // TODO check if better? Ask GPT?
+//        SwingUtilities.invokeLater(() -> {
+//            new DarkModeExample().setVisible(true);
+//        });
+//    }
     }
 }
