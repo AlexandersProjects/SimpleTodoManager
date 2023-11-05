@@ -1,19 +1,30 @@
 package de.example;
 
 import javax.swing.*;
-import java.awt.*;
-import java.io.*;
-import java.nio.file.*;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.List;
 import javax.swing.SwingWorker;
-import java.util.concurrent.ExecutionException;
 import javax.swing.JMenuBar;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JDialog;
 import javax.swing.BoxLayout;
+import javax.swing.KeyStroke;
+import java.awt.event.KeyEvent;
+import java.awt.event.InputEvent;
+
+import java.nio.file.StandardOpenOption;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import java.awt.*;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class TodoManager extends JFrame {
     private JTextField filePathField;
@@ -27,9 +38,11 @@ public class TodoManager extends JFrame {
 
     private void createAndShowGUI() {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(800, 600);
+        setSize(1000, 800);
 
-        String standardFilePath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\mytodos.txt";
+        // String standardFilePath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\mytodos.txt";
+        // For tests:
+        String standardFilePath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\UpdateMyNotes\\example.txt";
         filePathField = new JTextField(standardFilePath);
         filePathField.setText(standardFilePath);
 
@@ -40,27 +53,39 @@ public class TodoManager extends JFrame {
         textArea = new JTextArea();
 
         // Menu
+        // Menu Bar setup
         JMenuBar menuBar = new JMenuBar();
-        JMenu menu = new JMenu("Options");
+
+        // Options Menu
+        JMenu optionsMenu = new JMenu("Options");
+
+        // Open Menu Item
+        JMenuItem openItem = new JMenuItem("Open");
+        openItem.addActionListener(e -> openFile());
+        optionsMenu.add(openItem);
+
+        // Save Menu Item
+        JMenuItem saveItem = new JMenuItem("Save");
+        saveItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK));
+        saveItem.addActionListener(e -> saveFile());
+        optionsMenu.add(saveItem);
+
+        // Settings Menu Item
         JMenuItem settingsItem = new JMenuItem("Settings");
         settingsItem.addActionListener(e -> openSettingsDialog());
-        menu.add(settingsItem);
-        menuBar.add(menu);
+        optionsMenu.add(settingsItem);
+
+        // Add everything to the menu bar
+        menuBar.add(optionsMenu);
+
+        // Directly add the 'Move incomplete tasks' menu item to the menu bar
+        JMenuItem moveTasksItem = new JMenuItem("Move Uncompleted Tasks");
+        moveTasksItem.addActionListener(e -> moveUncompletedTasks());
+        menuBar.add(moveTasksItem);
+
         setJMenuBar(menuBar);
 
-        JButton openButton = new JButton("Open");
-        openButton.addActionListener(e -> openFile());
-
-        JButton saveButton = new JButton("Save");
-        saveButton.addActionListener(e -> saveFile());
-
         JPanel panel = new JPanel(new GridLayout(0, 1));
-        // panel.add(new JLabel("File Path:"));
-        // panel.add(filePathField);
-        // panel.add(new JLabel("Backup Directory:"));
-        // panel.add(backupPathField);
-        panel.add(openButton);
-        panel.add(saveButton);
 
         add(panel, BorderLayout.NORTH);
         add(new JScrollPane(textArea), BorderLayout.CENTER);
@@ -71,15 +96,155 @@ public class TodoManager extends JFrame {
         setVisible(true);
     }
 
+    private void moveUncompletedTasks() {
+        try {
+            // Get the path of the file from the text field.
+            Path filePath = Paths.get(filePathField.getText());
+
+            // Read all lines from the file into a list.
+            List<String> lines = Files.readAllLines(filePath);
+
+            // Create a formatter for the date in the format "dd.MM.yyyy".
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
+            // Compute the date of tomorrow.
+            LocalDate tomorrow = LocalDate.now().plusDays(1);
+
+            // Format tomorrow's date as a String.
+            String tomorrowDate = dtf.format(tomorrow);
+
+            // Prepare a new list to collect completed tasks and content that isn't a task (like headers or notes)
+            List<String> remainingDateContent = new ArrayList<>();
+
+            // Define a pattern that matches dates in the format "dd.MM.yyyy".
+            Pattern datePattern = Pattern.compile("^\\d{2}\\.\\d{2}\\.\\d{4}$");
+            // Initialize indices for slicing the file's content.
+            int firstDateIndex = -1;
+            int nextDateIndex = lines.size();
+
+            // Search for date lines to find the section where tasks are listed.
+            for (int i = 0; i < lines.size(); i++) {
+                if (datePattern.matcher(lines.get(i)).matches()) {
+                    if (firstDateIndex == -1) {
+                        // The first date line has been found.
+                        firstDateIndex = i;
+                    } else {
+                        // The next date line has been found, indicating the end of the task list.
+                        nextDateIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // Split the file's content into three parts: before, within, and after the latest date.
+            List<String> beforeDate = lines.subList(0, firstDateIndex);
+            List<String> dateContent = lines.subList(firstDateIndex, nextDateIndex);
+            List<String> afterDate = lines.subList(nextDateIndex, lines.size());
+
+            // Define a pattern that matches incomplete tasks (lines that start with a hyphen and do not have an 'x' following).
+            // TODO Pattern incompleteTaskPattern = Pattern.compile("^(\\t+)- [^x]");
+            // Pattern incompleteTaskPattern = Pattern.compile("^(?:[\\t ]*[xX]).*");
+            // Pattern incompleteTaskPattern = Pattern.compile("^[\\t ]*[^xX].*");
+            // Pattern incompleteTaskPattern = Pattern.compile("^[\\t ]*- [^xX].*");
+
+            // Matches a task that starts with a hyphen or a number and a dot, followed by a space, and is not followed by 'x' or 'X'.
+            // Pattern incompleteTaskPattern = Pattern.compile("^[\\t ]*(?:- |\\d+\\. )[^xX].*");
+            Pattern incompleteTaskPattern = Pattern.compile("^[\\t ]*(?:- |\\d+\\. ).*");
+
+
+            // Filter out incomplete tasks from the dateContent section.
+            //List<String> incompleteTasks = dateContent.stream()
+            //        .filter(incompleteTaskPattern.asPredicate())
+            //        .collect(Collectors.toList());
+
+            List<String> incompleteTasks = new ArrayList<>();
+            boolean checkOfLastTaskCompleted = true; // Assume the last task is completed initially.
+
+//            for (String line : dateContent) {
+//                if (line.trim().startsWith("TODO") || line.trim().startsWith("@")){
+//                    // Always include TODO headers and lines starting with "@".
+//                    remainingDateContent.add(line);
+//                } else if (incompleteTaskPattern.matcher(line).matches()) {
+//                    // This is an incomplete task and will be moved, so don't add it to remainingDateContent
+//                    incompleteTasks.add(line);
+//                } else {
+//                    // This line is not an incomplete task (so it's either a completed task or some other content), keep it in the current date section
+//                    remainingDateContent.add(line);
+//                }
+//            }
+
+            for (String line : dateContent) {
+                // Trim the line to remove leading and trailing whitespaces for accurate checks.
+                String trimmedLine = line.trim();
+
+                // Keep headers or special instructions intact.
+                if (trimmedLine.startsWith("TODO") || trimmedLine.startsWith("@")) {
+                    remainingDateContent.add(line);
+                }
+                // If it's an incomplete task and not following an uncompleted task, mark it to move.
+                else if (incompleteTaskPattern.matcher(trimmedLine).matches() && checkOfLastTaskCompleted) {
+                    incompleteTasks.add(line);
+                }
+                // If it's a completed task or doesn't match any of the above, keep it in place.
+                else {
+                    remainingDateContent.add(line);
+                    // If this line is a completed task, reset the flag to true.
+                    if (trimmedLine.startsWith("x-") || trimmedLine.startsWith("X-")) {
+                        checkOfLastTaskCompleted = true;
+                    }
+                    // If this line is an incomplete task, set the flag to false.
+                    else if (incompleteTaskPattern.matcher(trimmedLine).matches()) {
+                        checkOfLastTaskCompleted = false;
+                    }
+                }
+            }
+
+            // Prepare the updated content by adding beforeDate, tomorrow's date, incomplete tasks, a new line, the original dateContent, and afterDate.
+            List<String> updatedContent = new ArrayList<>();
+            updatedContent.addAll(beforeDate);
+            updatedContent.add(tomorrowDate); // Add tomorrow's date.
+            updatedContent.addAll(incompleteTasks); // Add incomplete tasks under tomorrow's date.
+            updatedContent.add(""); // Add an empty line for separation.
+            // updatedContent.addAll(dateContent); // Add the original tasks for today.
+            updatedContent.addAll(remainingDateContent); // Add the original tasks for today.
+            updatedContent.addAll(afterDate); // Add the content after the date section.
+
+            // Perform a backup before modifying the file.
+            createBackup(filePath);
+
+            // Write the updated content back to the file, replacing the existing content.
+            Files.write(filePath, updatedContent, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING);
+
+            loadFile();
+            // Inform the user of success.
+            JOptionPane.showMessageDialog(this, "Uncompleted tasks moved to " + tomorrowDate, "Success", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            // If anything goes wrong, show an error message.
+            JOptionPane.showMessageDialog(this, "Error moving uncompleted tasks: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private void openFile() {
         try {
             Path filePath = Paths.get(filePathField.getText());
-            List<String> lines = Files.readAllLines(filePath);
-            String content = String.join("\n", lines);
+
+            // Read the entire content of the file to a String, replacing system-dependent line separators with \n
+            String content = new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);
+            content = content.replace(System.getProperty("line.separator"), "\n");
+
             textArea.setText(content);
+            textArea.setCaretPosition(0); // Scrolls to the top of the text area
         } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "Error opening file: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private void addMoveTasksMenuItem(JMenuBar menuBar) {
+        JMenu optionsMenu = new JMenu("Options");
+        JMenuItem moveTasksItem = new JMenuItem("Move Uncompleted Tasks");
+        moveTasksItem.addActionListener(e -> moveUncompletedTasks());
+        optionsMenu.add(moveTasksItem);
+        menuBar.add(optionsMenu);
     }
 
     private void saveFile() {
@@ -89,11 +254,17 @@ public class TodoManager extends JFrame {
                 Path filePath = Paths.get(filePathField.getText());
                 String content = textArea.getText();
 
+                // Normalize line endings to match the system's newline character
+                String normalizedContent = content.replace("\r\n", "\n").replace("\r", "\n");
+                String systemLineSeparator = System.getProperty("line.separator");
+                normalizedContent = normalizedContent.replace("\n", systemLineSeparator);
+
                 // Backup Handling
                 createBackup(filePath);
 
                 // Save File
-                Files.write(filePath, Arrays.asList(content.split("\n")));
+                // Files.write(filePath, Arrays.asList(content.split("\n")));
+                Files.write(filePath, Arrays.asList(normalizedContent.split(systemLineSeparator)));
                 return null;
             }
 
@@ -126,7 +297,8 @@ public class TodoManager extends JFrame {
         Path path = Paths.get(filePathField.getText());
         if (Files.exists(path)) {
             try {
-                String content = Files.readString(path);
+                String content = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+                content = content.replace(System.getProperty("line.separator"), "\n");
                 textArea.setText(content);
                 textArea.setCaretPosition(0); // Scrolls to the top of the text area
             } catch (IOException e) {
