@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 
 import mdlaf.MaterialLookAndFeel;
 import mdlaf.themes.JMarsDarkTheme;
+import mdlaf.themes.MaterialOceanicTheme;
 
 public class TodoManager extends JFrame {
     private JTextField filePathField;
@@ -139,7 +140,9 @@ public class TodoManager extends JFrame {
             String tomorrowDate = dtf.format(tomorrow);
 
             // Prepare a new list to collect completed tasks and content that isn't a task (like headers or notes)
-            List<String> remainingDateContent = new ArrayList<>();
+            List<String> lastDateCompletedTasks = new ArrayList<>();
+
+            String firstDateDateLine = "";
 
             // Define a pattern that matches dates in the format "dd.MM.yyyy".
             Pattern datePattern = Pattern.compile("^\\d{2}\\.\\d{2}\\.\\d{4}$");
@@ -163,72 +166,78 @@ public class TodoManager extends JFrame {
 
             // Split the file's content into three parts: before, within, and after the latest date.
             List<String> beforeDate = lines.subList(0, firstDateIndex);
-            List<String> dateContent = lines.subList(firstDateIndex, nextDateIndex);
-            List<String> afterDate = lines.subList(nextDateIndex, lines.size());
+            List<String> firstDateContent = lines.subList(firstDateIndex, nextDateIndex);
+            List<String> afterDateContent = lines.subList(nextDateIndex, lines.size());
 
             // Define a pattern that matches incomplete tasks (lines that start with a hyphen and do not have an 'x' following).
             // Matches a task that starts with a hyphen or a number and a dot, followed by a space, and is not followed by 'x' or 'X'.
-            Pattern incompleteTaskPattern = Pattern.compile("^[\\t ]*(?:- |\\d+\\. ).*");
+            Pattern uncompletedTaskPattern = Pattern.compile("^[\\t ]*(?:- |\\d+\\. ).*");
 
-            // TODO make the for loop work as intended
-            // TODO copy (or add to both) TODO and @ lines instead of moving them
+            List<String> uncompletedTasks = new ArrayList<>();
 
-            // Filter out incomplete tasks from the dateContent section.
-            //List<String> incompleteTasks = dateContent.stream()
-            //        .filter(incompleteTaskPattern.asPredicate())
-            //        .collect(Collectors.toList());
+            for (int i = 0; i < firstDateContent.size(); i++) {
+                String actualLine = firstDateContent.get(i);
 
-            List<String> incompleteTasks = new ArrayList<>();
-            boolean checkOfLastTaskCompleted = true; // Assume the last task is completed initially.
-
-//            for (String line : dateContent) {
-//                if (line.trim().startsWith("TODO") || line.trim().startsWith("@")){
-//                    // Always include TODO headers and lines starting with "@".
-//                    remainingDateContent.add(line);
-//                } else if (incompleteTaskPattern.matcher(line).matches()) {
-//                    // This is an incomplete task and will be moved, so don't add it to remainingDateContent
-//                    incompleteTasks.add(line);
-//                } else {
-//                    // This line is not an incomplete task (so it's either a completed task or some other content), keep it in the current date section
-//                    remainingDateContent.add(line);
-//                }
-//            }
-
-            for (String line : dateContent) {
+                // Move the date directly to the list
+                if (i == 0 ) {
+//                    uncompletedTasks.add(actualLine);
+                    firstDateDateLine = actualLine;
+                }
                 // Trim the line to remove leading and trailing whitespaces for accurate checks.
-                String trimmedLine = line.trim();
+                String trimmedActualLine = actualLine.trim();
+
+                // Ebene / SpaceCount der aktuellen Zeile
+                int actualLineSpaceCount = actualLine.length() - actualLine.replaceAll("^[\\t ]+", "").length();
 
                 // Keep headers or special instructions intact.
-                if (trimmedLine.startsWith("TODO") || trimmedLine.startsWith("@")) {
-                    remainingDateContent.add(line);
-                }
-                // If it's an incomplete task and not following an uncompleted task, mark it to move.
-                else if (incompleteTaskPattern.matcher(trimmedLine).matches() && checkOfLastTaskCompleted) {
-                    incompleteTasks.add(line);
-                }
-                // If it's a completed task or doesn't match any of the above, keep it in place.
-                else {
-                    remainingDateContent.add(line);
-                    // If this line is a completed task, reset the flag to true.
-                    if (trimmedLine.startsWith("x-") || trimmedLine.startsWith("X-")) {
-                        checkOfLastTaskCompleted = true;
+                if (trimmedActualLine.startsWith("TODO") || trimmedActualLine.startsWith("@")) {
+                    lastDateCompletedTasks.add(actualLine);
+                    uncompletedTasks.add(actualLine);
+                } else if (trimmedActualLine.startsWith("x-") || trimmedActualLine.startsWith("X-")) {
+                    // This is a completed task; add it to completed tasks
+                    lastDateCompletedTasks.add(actualLine);
+                    // Look for sub-tasks
+                    int j = i + 1;
+                    while (j < firstDateContent.size()) {
+                        String nextLine = firstDateContent.get(j);
+                        int nextLineSpaceCount = nextLine.length() - nextLine.replaceAll("^[\\t ]+", "").length();
+                        if (nextLineSpaceCount > actualLineSpaceCount) {
+                            String replacedNextLine = nextLine.replaceAll("^(\\s*)(\\d+\\.|-)", "$1X$2");
+                            lastDateCompletedTasks.add(replacedNextLine);
+                            j++;
+                        } else {
+                            break;
+                        }
                     }
-                    // If this line is an incomplete task, set the flag to false.
-                    else if (incompleteTaskPattern.matcher(trimmedLine).matches()) {
-                        checkOfLastTaskCompleted = false;
-                    }
+                    i = j - 1; // Skip the processed sub-tasks.
+                } else if (uncompletedTaskPattern.matcher(trimmedActualLine).matches()) {
+                    uncompletedTasks.add(actualLine);
                 }
             }
 
-            // Prepare the updated content by adding beforeDate, tomorrow's date, incomplete tasks, a new line, the original dateContent, and afterDate.
+            // Prepare the updated content by adding beforeDate, tomorrow's date, incomplete tasks, a new line, the original firstDateContent, and afterDateContent.
             List<String> updatedContent = new ArrayList<>();
             updatedContent.addAll(beforeDate);
             updatedContent.add(tomorrowDate); // Add tomorrow's date.
-            updatedContent.addAll(incompleteTasks); // Add incomplete tasks under tomorrow's date.
+            updatedContent.addAll(uncompletedTasks); // Add incomplete tasks under tomorrow's date.
             updatedContent.add(""); // Add an empty line for separation.
-            // updatedContent.addAll(dateContent); // Add the original tasks for today.
-            updatedContent.addAll(remainingDateContent); // Add the original tasks for today.
-            updatedContent.addAll(afterDate); // Add the content after the date section.
+            // updatedContent.addAll(firstDateContent); // Add the original tasks for today.
+            updatedContent.add(firstDateDateLine); // Add the date of the first found Date before adding the new date
+            updatedContent.addAll(lastDateCompletedTasks); // Add the original tasks for today.
+            updatedContent.addAll(afterDateContent); // Add the content after the date section.
+
+            System.out.println("beforeDate:");
+            beforeDate.forEach(line -> System.out.println(line));
+            System.out.println("tomorrowDate:\n" + tomorrowDate);
+            System.out.println("uncompletedTasks:");
+            uncompletedTasks.forEach(line -> System.out.println(line));
+            System.out.println("");
+            System.out.println("firstDateDateLine:\n" + firstDateDateLine);
+            System.out.println("lastDateCompletedTasks:");
+            lastDateCompletedTasks.forEach(line -> System.out.println(line));
+            System.out.println("afterDateContent:");
+            afterDateContent.forEach(line -> System.out.println(line));
+
 
             // Perform a backup before modifying the file.
             createBackup(filePath);
@@ -241,6 +250,7 @@ public class TodoManager extends JFrame {
             JOptionPane.showMessageDialog(this, "Uncompleted tasks moved to " + tomorrowDate, "Success", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             // If anything goes wrong, show an error message.
+            System.out.println("Error moving uncompleted tasks: " + ex.getMessage());
             JOptionPane.showMessageDialog(this, "Error moving uncompleted tasks: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -362,8 +372,8 @@ public class TodoManager extends JFrame {
             }
             // Apply the dark theme
             if (UIManager.getLookAndFeel() instanceof MaterialLookAndFeel) {
-//                MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
-                MaterialLookAndFeel.changeTheme(new JMarsDarkTheme());
+                MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
+//                MaterialLookAndFeel.changeTheme(new JMarsDarkTheme());
             }
         } catch (UnsupportedLookAndFeelException e) {
             e.printStackTrace();
