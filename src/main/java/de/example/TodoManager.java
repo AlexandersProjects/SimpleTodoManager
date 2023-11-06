@@ -29,18 +29,25 @@ import java.util.concurrent.ExecutionException;
 
 import mdlaf.MaterialLookAndFeel;
 import mdlaf.themes.JMarsDarkTheme;
+import mdlaf.themes.MaterialLiteTheme;
 import mdlaf.themes.MaterialOceanicTheme;
 
 public class TodoManager extends JFrame {
     private JTextField filePathField;
     private JTextField backupPathField;
     private JTextArea textArea;
+    private JCheckBoxMenuItem darkModeToggle = new JCheckBoxMenuItem("Dark Mode");
+
+    private JDialog settingsDialog;
+
 
     public TodoManager() {
         createAndShowGUI();
     }
 
     private void createAndShowGUI() {
+        switchToDarkMode();
+
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1000, 800);
 
@@ -83,6 +90,24 @@ public class TodoManager extends JFrame {
         menuBar.add(optionsMenu);
 
         // Directly add the 'Move incomplete tasks' menu item to the menu bar
+        JMenuItem moveTasksItem = getMoveTasksItem();
+        menuBar.add(moveTasksItem);
+
+        setJMenuBar(menuBar);
+
+        JPanel panel = new JPanel(new GridLayout(0, 1));
+
+        add(panel, BorderLayout.NORTH);
+        add(new JScrollPane(textArea), BorderLayout.CENTER);
+
+        loadFile();
+        // pack();
+        setTitle("Simple ToDo Manager");
+        setLocationRelativeTo(null); // Center on screen
+        setVisible(true);
+    }
+
+    private JMenuItem getMoveTasksItem() {
         JMenuItem moveTasksItem = new JMenuItem("Move Uncompleted Tasks");
         moveTasksItem.addActionListener(e -> moveUncompletedTasks());
         moveTasksItem.addMouseListener(new MouseAdapter() {
@@ -96,30 +121,7 @@ public class TodoManager extends JFrame {
                 moveTasksItem.setArmed(false);
             }
         });
-        menuBar.add(moveTasksItem);
-
-        setJMenuBar(menuBar);
-
-        JPanel panel = new JPanel(new GridLayout(0, 1));
-
-        add(panel, BorderLayout.NORTH);
-        add(new JScrollPane(textArea), BorderLayout.CENTER);
-
-//        try {
-//            // Set System L&F
-//            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-//        } catch (UnsupportedLookAndFeelException | ClassNotFoundException | InstantiationException |
-//                 IllegalAccessException e) {
-//            JOptionPane.showMessageDialog(this, "Error getting the system default theme" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-//        }
-
-        switchToDarkMode();
-
-        loadFile();
-        // pack();
-        setTitle("Simple ToDo Manager");
-        setLocationRelativeTo(null); // Center on screen
-        setVisible(true);
+        return moveTasksItem;
     }
 
     private void moveUncompletedTasks() {
@@ -221,7 +223,6 @@ public class TodoManager extends JFrame {
             updatedContent.add(tomorrowDate); // Add tomorrow's date.
             updatedContent.addAll(uncompletedTasks); // Add incomplete tasks under tomorrow's date.
             updatedContent.add(""); // Add an empty line for separation.
-            // updatedContent.addAll(firstDateContent); // Add the original tasks for today.
             updatedContent.add(firstDateDateLine); // Add the date of the first found Date before adding the new date
             updatedContent.addAll(lastDateCompletedTasks); // Add the original tasks for today.
             updatedContent.addAll(afterDateContent); // Add the content after the date section.
@@ -237,7 +238,6 @@ public class TodoManager extends JFrame {
             lastDateCompletedTasks.forEach(line -> System.out.println(line));
             System.out.println("afterDateContent:");
             afterDateContent.forEach(line -> System.out.println(line));
-
 
             // Perform a backup before modifying the file.
             createBackup(filePath);
@@ -340,13 +340,23 @@ public class TodoManager extends JFrame {
     }
 
     private void openSettingsDialog() {
-        JDialog settingsDialog = new JDialog(this, "Settings", Dialog.ModalityType.APPLICATION_MODAL);
+        settingsDialog = new JDialog(this, "Settings", Dialog.ModalityType.APPLICATION_MODAL);
         settingsDialog.setLayout(new BoxLayout(settingsDialog.getContentPane(), BoxLayout.Y_AXIS));
 
         settingsDialog.add(new JLabel("File Path:"));
         settingsDialog.add(filePathField);
         settingsDialog.add(new JLabel("Backup Directory:"));
         settingsDialog.add(backupPathField);
+
+        settingsDialog.add(new JLabel("Toggle Dark Mode:"));
+        darkModeToggle.addActionListener(e -> {
+            if (darkModeToggle.isSelected()) {
+                switchToDarkMode();
+            } else {
+                switchToLightMode();
+            }
+        });
+        settingsDialog.add(darkModeToggle);
 
         JButton closeButton = new JButton("Close");
         closeButton.addActionListener(e -> settingsDialog.setVisible(false));
@@ -357,12 +367,6 @@ public class TodoManager extends JFrame {
         settingsDialog.setVisible(true);
     }
 
-    // Method to switch to dark mode at runtime
-//    public static void switchToDarkMode(JFrame frame) {
-//        MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
-//        SwingUtilities.updateComponentTreeUI(frame);
-//        frame.pack(); // Optional: Adjusts the frame size after theme switch
-//    }
     // Method to switch to dark mode
     private void switchToDarkMode() {
         try {
@@ -372,8 +376,10 @@ public class TodoManager extends JFrame {
             }
             // Apply the dark theme
             if (UIManager.getLookAndFeel() instanceof MaterialLookAndFeel) {
-                MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
-//                MaterialLookAndFeel.changeTheme(new JMarsDarkTheme());
+//                MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
+                MaterialLookAndFeel.changeTheme(new JMarsDarkTheme());
+                updateUIComponents();
+                darkModeToggle.setState(true);
             }
         } catch (UnsupportedLookAndFeelException e) {
             e.printStackTrace();
@@ -383,34 +389,51 @@ public class TodoManager extends JFrame {
         SwingUtilities.updateComponentTreeUI(this);
     }
 
+    private void switchToLightMode() {
+        try {
+            // Assuming there is a light theme equivalent to the dark theme you're using
+            if (UIManager.getLookAndFeel() instanceof MaterialLookAndFeel) {
+                MaterialLookAndFeel.changeTheme(new MaterialLiteTheme());
+                updateUIComponents();
+                darkModeToggle.setState(false);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        SwingUtilities.updateComponentTreeUI(this);
+    }
+
+    private void updateUIComponents() {
+        // Update the UI of the main frame
+        SwingUtilities.updateComponentTreeUI(this);
+        this.repaint();
+        this.invalidate();
+
+        // If the settings dialog is open, update its UI as well
+        if (settingsDialog != null && settingsDialog.isDisplayable()) {
+            SwingUtilities.updateComponentTreeUI(settingsDialog);
+            settingsDialog.repaint();
+            settingsDialog.invalidate();
+        }
+    }
+
     public static void main(String[] args) {
-//        // Set the look and feel to Material UI
-//        try {
-//            // Set Material look and feel
-//            UIManager.setLookAndFeel(new MaterialLookAndFeel());
-//
-//            // If you want to change the default theme, you can do
-//            if (UIManager.getLookAndFeel() instanceof MaterialLookAndFeel) {
-//                // Set the dark theme
-//                MaterialLookAndFeel.changeTheme(new MaterialOceanicTheme());
-//            }
-//        } catch (UnsupportedLookAndFeelException e) {
-//            e.printStackTrace();
-//        }
+        // Set the preferred look and feel here before any components are created
+        try {
+            // Set your dark mode look and feel here
+            UIManager.setLookAndFeel(new MaterialLookAndFeel());
+            if (UIManager.getLookAndFeel() instanceof MaterialLookAndFeel) {
+                MaterialLookAndFeel.changeTheme(new JMarsDarkTheme());
+            }
+        } catch (UnsupportedLookAndFeelException e) {
+            e.printStackTrace();
+        }
 
-        SwingUtilities.invokeLater(TodoManager::new);
-
-//        // Ensure the frame is constructed and shown on the EDT
-//        SwingUtilities.invokeLater(() -> {
-//            TodoManager frame = new TodoManager();
-//            frame.setVisible(true);
-//        });
-
-        // TODO check if better? Ask GPT?
-        //        SwingUtilities.invokeLater(() -> {
-        //            new DarkModeExample().setVisible(true);
-        //        });
-        //    }
-
+        // Now create and show the GUI on the EDT
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                new TodoManager();
+            }
+        });
     }
 }
