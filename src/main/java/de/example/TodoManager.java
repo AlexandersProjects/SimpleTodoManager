@@ -1,47 +1,64 @@
 package de.example;
 
-import javax.swing.*;
-import javax.swing.SwingWorker;
-import javax.swing.JMenuBar;
-import javax.swing.JMenu;
-import javax.swing.JMenuItem;
-import javax.swing.JDialog;
-import javax.swing.BoxLayout;
-import javax.swing.KeyStroke;
-import java.awt.event.KeyEvent;
-import java.awt.event.InputEvent;
-
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.nio.file.StandardOpenOption;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.regex.Pattern;
-
-import java.awt.*;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-
 import mdlaf.MaterialLookAndFeel;
 import mdlaf.themes.JMarsDarkTheme;
 import mdlaf.themes.MaterialLiteTheme;
-import mdlaf.themes.MaterialOceanicTheme;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
+import java.util.prefs.Preferences;
 
 public class TodoManager extends JFrame {
     private JTextField filePathField;
     private JTextField backupPathField;
     private JTextArea textArea;
-    private JCheckBoxMenuItem darkModeToggle = new JCheckBoxMenuItem("Dark Mode");
-
+    private JCheckBoxMenuItem darkModeToggle;
     private JDialog settingsDialog;
-
+    private Preferences prefs;
 
     public TodoManager() {
+        // Initialize your Preferences object first.
+        prefs = Preferences.userNodeForPackage(TodoManager.class);
+
+        // Initialize filePathField and backupPathField before calling loadPreferences.
+        filePathField = new JTextField();
+        backupPathField = new JTextField();
+        darkModeToggle = new JCheckBoxMenuItem();
+
+        // Now that filePathField and backupPathField are initialized, you can load preferences.
+        loadPreferences(); // Load preferences at startup
+
+        // If filePath is still null after loading preferences, prompt for the file path.
+        if (filePathField.getText().isEmpty()) {
+            promptForFilePath();
+        }
+
+        // Add WindowListener to save preferences when the window is closing
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                savePreferences(); // Save preferences when the window is closing
+            }
+        });
+
+        // Initialize darkModeToggle and add ActionListener here, not inside openSettingsDialog
+        initializeDarkModeToggle();
+
+        // Continue with the rest of the GUI creation.
         createAndShowGUI();
     }
 
@@ -51,19 +68,20 @@ public class TodoManager extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1000, 800);
 
-        // String standardFilePath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\mytodos.txt";
+        // String filePath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\mytodos.txt";
         // For tests:
-        String standardFilePath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\UpdateMyNotes\\example.txt";
-        filePathField = new JTextField(standardFilePath);
-        filePathField.setText(standardFilePath);
+//        String filePath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\UpdateMyNotes\\example.txt";
+        String filePath = prefs.get("filePath", ""); // Empty string if not set
+        filePathField = new JTextField(filePath);
+        filePathField.setText(filePath);
 
-        String standardBackupPath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\mytodos_backups\\";
-        backupPathField = new JTextField(standardBackupPath);
-        backupPathField.setText(standardBackupPath);
+//        String backupPath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\mytodos_backups\\";
+        String backupPath = prefs.get("backupPath", ""); // Empty string if not set
+        backupPathField = new JTextField(backupPath);
+        backupPathField.setText(backupPath);
 
         textArea = new JTextArea();
 
-        // Menu
         // Menu Bar setup
         JMenuBar menuBar = new JMenuBar();
 
@@ -279,9 +297,14 @@ public class TodoManager extends JFrame {
     }
 
     private void saveFile() {
+        if (filePathField.getText().isEmpty()) {
+            JOptionPane.showMessageDialog(this, "File path is not set.", "Error", JOptionPane.ERROR_MESSAGE);
+            return; // Do not attempt to save if the path is empty
+        }
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
+
                 Path filePath = Paths.get(filePathField.getText());
                 String content = textArea.getText();
 
@@ -325,7 +348,14 @@ public class TodoManager extends JFrame {
     }
 
     private void loadFile() {
-        Path path = Paths.get(filePathField.getText());
+        String filePath = filePathField.getText();
+        if (filePath == null || filePath.trim().isEmpty()) {
+            // Display a warning or prompt for file path again
+            JOptionPane.showMessageDialog(this, "Please chose a file.",
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            promptForFilePath(); // Prompt if the path is still not set
+        }
+        Path path = Paths.get(filePath);
         if (Files.exists(path)) {
             try {
                 String content = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
@@ -345,21 +375,18 @@ public class TodoManager extends JFrame {
 
         settingsDialog.add(new JLabel("File Path:"));
         settingsDialog.add(filePathField);
+
         settingsDialog.add(new JLabel("Backup Directory:"));
         settingsDialog.add(backupPathField);
 
         settingsDialog.add(new JLabel("Toggle Dark Mode:"));
-        darkModeToggle.addActionListener(e -> {
-            if (darkModeToggle.isSelected()) {
-                switchToDarkMode();
-            } else {
-                switchToLightMode();
-            }
-        });
         settingsDialog.add(darkModeToggle);
 
-        JButton closeButton = new JButton("Close");
-        closeButton.addActionListener(e -> settingsDialog.setVisible(false));
+        JButton closeButton = new JButton("Apply Settings and Close");
+        closeButton.addActionListener(e -> {
+            savePreferences(); // Save preferences before closing
+            settingsDialog.setVisible(false);
+        });
         settingsDialog.add(closeButton);
 
         settingsDialog.pack();
@@ -403,6 +430,19 @@ public class TodoManager extends JFrame {
         SwingUtilities.updateComponentTreeUI(this);
     }
 
+    private void initializeDarkModeToggle() {
+        darkModeToggle = new JCheckBoxMenuItem("Dark Mode");
+        darkModeToggle.addActionListener(e -> {
+            boolean isDarkMode = darkModeToggle.isSelected();
+            if (isDarkMode) {
+                switchToDarkMode();
+            } else {
+                switchToLightMode();
+            }
+            savePreferences(); // Save the preference directly here
+        });
+    }
+
     private void updateUIComponents() {
         // Update the UI of the main frame
         SwingUtilities.updateComponentTreeUI(this);
@@ -414,6 +454,53 @@ public class TodoManager extends JFrame {
             SwingUtilities.updateComponentTreeUI(settingsDialog);
             settingsDialog.repaint();
             settingsDialog.invalidate();
+        }
+    }
+
+    public void savePreferences() {
+        // Save file path preferences
+        prefs.put("filePath", filePathField.getText());
+        prefs.put("backupPath", backupPathField.getText());
+
+        // Save UI preferences
+        prefs.putBoolean("darkMode", darkModeToggle.isSelected());
+
+        // Possibly save other settings...
+    }
+
+    public void loadPreferences() {
+        String filePath = prefs.get("filePath", null);
+        String backupPath = prefs.get("backupPath", null);
+        boolean darkMode = prefs.getBoolean("darkMode", false);
+
+        if (filePath != null) {
+            filePathField.setText(filePath);
+        }
+
+        if (backupPath != null) {
+            backupPathField.setText(backupPath);
+        }
+
+        if (darkMode) {
+            switchToDarkMode();
+        } else {
+            switchToLightMode();
+        }
+    }
+
+    // Call this method when the user changes settings
+    public void onSettingsChanged() {
+        savePreferences();
+    }
+
+    private void promptForFilePath() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Select the file for storing todos");
+        int result = fileChooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+            filePathField.setText(selectedFile.getAbsolutePath());
+            savePreferences(); // Save the file path to preferences
         }
     }
 
