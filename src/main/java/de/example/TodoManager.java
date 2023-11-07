@@ -173,7 +173,7 @@ public class TodoManager extends JFrame {
 
             // Define a pattern that matches incomplete tasks (lines that start with a hyphen and do not have an 'x' following).
             // Matches a task that starts with a hyphen or a number and a dot, followed by a space, and is not followed by 'x' or 'X'.
-            Pattern uncompletedTaskPattern = Pattern.compile("^[\\t ]*(?:- |\\d+\\. ).*");
+            Pattern uncompletedTaskPattern = Pattern.compile("^[\\t ]*(?:-|\\d+\\.)[^\\d].*");
 
             List<String> uncompletedTasks = new ArrayList<>();
 
