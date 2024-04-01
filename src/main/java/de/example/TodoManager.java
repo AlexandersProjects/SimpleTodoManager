@@ -24,11 +24,17 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.Properties;
 
 public class TodoManager extends JFrame {
+    String CONFIG_FILE_NAME = "config.properties";
+
     private JTextField filePathField;
     private JTextField backupPathField;
     private JTextArea textArea;
+
+    // Read properties
+    Properties todoManagerProperties = ReadConfig.readPropertiesFile(CONFIG_FILE_NAME);
 
     public TodoManager() {
         setTitle("Simple ToDo Manager");
@@ -39,13 +45,12 @@ public class TodoManager extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1000, 800);
 
-        // String standardFilePath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\mytodos.txt";
         // For tests:
-        String standardFilePath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\UpdateMyNotes\\example.txt";
+        String standardFilePath = todoManagerProperties.getProperty("standardFilePath");
         filePathField = new JTextField(standardFilePath);
         filePathField.setText(standardFilePath);
 
-        String standardBackupPath = "C:\\Users\\Blaschko\\OneDrive\\Dokumente\\Alexanders Development\\Code examples\\Daily_simple_todo_script\\mytodos_backups\\";
+        String standardBackupPath = todoManagerProperties.getProperty("todoFilePath");
         backupPathField = new JTextField(standardBackupPath);
         backupPathField.setText(standardBackupPath);
 
