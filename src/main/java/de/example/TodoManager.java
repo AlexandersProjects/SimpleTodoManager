@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.prefs.BackingStoreException;
 import java.util.regex.Pattern;
 import java.util.prefs.Preferences;
 
@@ -57,6 +58,14 @@ public class TodoManager extends JFrame {
 
         // Initialize darkModeToggle and add ActionListener here, not inside openSettingsDialog
         initializeDarkModeToggle();
+
+        System.out.println("VOR addClearPreferencesShortcut(), APP_ENTV='" + System.getenv("APP_ENV") + "'");
+        if ("development".equals(System.getenv("APP_ENV"))) {
+            // Development-only feature: clear preferences with a key combination
+            addClearPreferencesShortcut();
+            System.out.println("addClearPreferencesShortcut hinzugefügt!");
+        }
+        System.out.println("NACH addClearPreferencesShortcut()");
 
         // Continue with the rest of the GUI creation.
         createAndShowGUI();
@@ -501,6 +510,45 @@ public class TodoManager extends JFrame {
             File selectedFile = fileChooser.getSelectedFile();
             filePathField.setText(selectedFile.getAbsolutePath());
             savePreferences(); // Save the file path to preferences
+        }
+    }
+
+    private void addClearPreferencesShortcut() {
+        getContentPane().addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                // Check for a specific key combination (e.g., Ctrl + Shift + X)
+                if (e.isControlDown() && e.isShiftDown() && e.getKeyCode() == KeyEvent.VK_X) {
+                    clearPreferences();
+                    JOptionPane.showMessageDialog(TodoManager.this,
+                            "Preferences have been cleared.", "Development", JOptionPane.INFORMATION_MESSAGE);
+                }
+            }
+        });
+        getContentPane().setFocusable(true);
+        getContentPane().requestFocus();
+
+//        addKeyListener(new KeyAdapter() {
+//            @Override
+//            public void keyPressed(KeyEvent e) {
+//                // Check for a specific key combination (e.g., Ctrl + Shift + X)
+//                if (e.isControlDown() && e.isShiftDown() && e.getKeyCode() == KeyEvent.VK_X) {
+//                    clearPreferences();
+//                    JOptionPane.showMessageDialog(TodoManager.this,
+//                            "Preferences have been cleared.", "Development", JOptionPane.INFORMATION_MESSAGE);
+//                }
+//            }
+//        });
+    }
+
+    private void clearPreferences() {
+        try {
+            prefs.clear();
+            prefs.flush(); // Make sure the changes are written immediately
+            System.out.println("clearPreferences() successfully executed '" + prefs.get("filePath", "") + "' '"
+                    + prefs.get("backupPath", "") + "'");
+        } catch (BackingStoreException e) {
+            e.printStackTrace();
         }
     }
 
